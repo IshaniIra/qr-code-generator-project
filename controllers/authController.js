@@ -34,7 +34,8 @@ export const registerUser = async (req, res) => {
       emailVerificationExpires: Date.now() + 60 * 60 * 1000
     });
 
-    const verificationLink = `http://localhost:5000/api/auth/verify-email?token=${rawToken}`;
+    const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:5000";
+const verificationLink = `${apiBaseUrl}/api/auth/verify-email?token=${rawToken}`;
 
     await sendVerificationEmail({
       email: user.email,
