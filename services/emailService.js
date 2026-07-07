@@ -15,14 +15,14 @@ const getFromEmail = () => {
 export const sendVerificationEmail = async (email, verificationLink) => {
   const resend = getResendClient();
 
-if (!resend) {
-  console.log("RESEND_API_KEY missing. Verification link:", verificationLink);
-  return;
-}
+  if (!resend) {
+    console.log("RESEND_API_KEY missing. Verification link:", verificationLink);
+    return;
+  }
 
-const emailResult = await resend.emails.send({
+  console.log("Trying to send verification email to:", email);
 
-  await resend.emails.send({
+  const emailResult = await resend.emails.send({
     from: getFromEmail(),
     to: email,
     subject: "Verify your QR Studio account",
@@ -43,6 +43,7 @@ const emailResult = await resend.emails.send({
       </div>
     `,
   });
+
   console.log("Resend verification email result:", emailResult);
 };
 
@@ -50,11 +51,13 @@ export const sendQrCodeEmail = async (email, qrCode) => {
   const resend = getResendClient();
 
   if (!resend) {
-    console.log("QR code email requested for:", email);
+    console.log("RESEND_API_KEY missing. QR code email requested for:", email);
     return;
   }
 
-  await resend.emails.send({
+  console.log("Trying to send QR code email to:", email);
+
+  const emailResult = await resend.emails.send({
     from: getFromEmail(),
     to: email,
     subject: "Your QR Studio code",
@@ -69,4 +72,6 @@ export const sendQrCodeEmail = async (email, qrCode) => {
       </div>
     `,
   });
+
+  console.log("Resend QR code email result:", emailResult);
 };
