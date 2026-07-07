@@ -15,10 +15,12 @@ const getFromEmail = () => {
 export const sendVerificationEmail = async (email, verificationLink) => {
   const resend = getResendClient();
 
-  if (!resend) {
-    console.log("Verification link:", verificationLink);
-    return;
-  }
+if (!resend) {
+  console.log("RESEND_API_KEY missing. Verification link:", verificationLink);
+  return;
+}
+
+const emailResult = await resend.emails.send({
 
   await resend.emails.send({
     from: getFromEmail(),
@@ -41,6 +43,7 @@ export const sendVerificationEmail = async (email, verificationLink) => {
       </div>
     `,
   });
+  console.log("Resend verification email result:", emailResult);
 };
 
 export const sendQrCodeEmail = async (email, qrCode) => {
