@@ -24,7 +24,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+   
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
@@ -32,7 +32,7 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       name,
       email,
-      password: hashedPassword,
+      password,
       isEmailVerified: false,
       emailVerificationToken: hashedToken,
       emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
