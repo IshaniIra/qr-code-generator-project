@@ -12,8 +12,11 @@ const getFromEmail = () => {
   return process.env.EMAIL_FROM || "QR Studio <onboarding@resend.dev>";
 };
 
-export const sendVerificationEmail = async (email, verificationLink) => {
+export const sendVerificationEmail = async (emailDetails) => {
   const resend = getResendClient();
+
+  const email = emailDetails.email;
+  const verificationLink = emailDetails.verificationLink;
 
   if (!resend) {
     console.log("RESEND_API_KEY missing. Verification link:", verificationLink);
