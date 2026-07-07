@@ -1,61 +1,65 @@
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import {
-  createEmailVerificationToken,
-  createLoginToken,
-  hashToken
-} from "../utils/tokens.js";
 import { sendVerificationEmail } from "../services/emailService.js";
+
+const createToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+};
 
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required"
-      });
+      return res.status(400).json({ message: "Name, email, and password are required" });
     }
 
     const existingUser = await User.findOne({ email });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists with this email"
-      });
+      return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    const { rawToken, hashedToken } = createEmailVerificationToken();
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
     const user = await User.create({
       name,
       email,
-      password,
+      password: hashedPassword,
+      isEmailVerified: false,
       emailVerificationToken: hashedToken,
-      emailVerificationExpires: Date.now() + 60 * 60 * 1000
+      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
     });
 
     const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:5000";
-const verificationLink = `${apiBaseUrl}/api/auth/verify-email?token=${rawToken}`;
+    const verificationLink = `${apiBaseUrl}/api/auth/verify-email?token=${rawToken}`;
 
     await sendVerificationEmail({
       email: user.email,
       name: user.name,
-      verificationLink
+      verificationLink,
     });
 
     res.status(201).json({
-      message: "User registered successfully. Please verify your email.",
+      message: "User registered successfully.",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        isEmailVerified: user.isEmailVerified
-      }
+        isEmailVerified: user.isEmailVerified,
+      },
     });
   } catch (error) {
     res.status(500).json({
       message: "Registration failed",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -65,22 +69,18 @@ export const verifyEmail = async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
-      return res.status(400).json({
-        message: "Verification token is missing"
-      });
+      return res.status(400).json({ message: "Verification token is required" });
     }
 
-    const hashedToken = hashToken(token);
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       emailVerificationToken: hashedToken,
-      emailVerificationExpires: { $gt: Date.now() }
+      emailVerificationExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({
-        message: "Invalid or expired verification token"
-      });
+      return res.status(400).json({ message: "Invalid or expired verification token" });
     }
 
     user.isEmailVerified = true;
@@ -89,13 +89,11 @@ export const verifyEmail = async (req, res) => {
 
     await user.save();
 
-    res.json({
-      message: "Email verified successfully. You can now log in."
-    });
+    res.json({ message: "Email verified successfully. You can now log in." });
   } catch (error) {
     res.status(500).json({
       message: "Email verification failed",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -105,34 +103,22 @@ export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required"
-      });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password"
-      });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const passwordMatches = await user.matchPassword(password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
-    if (!passwordMatches) {
-      return res.status(401).json({
-        message: "Invalid email or password"
-      });
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: "Please verify your email before logging in"
-      });
-    }
-
-    const token = createLoginToken(user._id);
+    const token = createToken(user._id);
 
     res.json({
       message: "Login successful",
@@ -140,13 +126,14 @@ export const loginUser = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
+      },
     });
   } catch (error) {
     res.status(500).json({
       message: "Login failed",
-      error: error.message
+      error: error.message,
     });
   }
 };
